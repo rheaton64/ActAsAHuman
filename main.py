@@ -3,6 +3,7 @@ import json
 import quart
 import quart_cors
 from quart import request
+from dotenv import load_dotenv
 
 app = quart_cors.cors(quart.Quart(__name__), allow_origin="https://chat.openai.com")
 

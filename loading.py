@@ -9,7 +9,10 @@ from langchain.callbacks.manager import Callbacks
 from langchain.experimental.plan_and_execute.schema import StepResponse
 from langchain.chains.base import Chain
 from langchain import LLMChain
+from langchain.schema import SystemMessage
 from langchain.prompts import SystemMessagePromptTemplate, HumanMessagePromptTemplate, ChatPromptTemplate
+from langchain.experimental.plan_and_execute.planners.base import LLMPlanner
+from langchain.experimental.plan_and_execute.planners.chat_planner import PlanningOutputParser
 
 
 HUMAN_MESSAGE_TEMPLATE = """Previous steps: {previous_steps}
@@ -36,6 +39,21 @@ SUFFIX = (
     "\nThought:"
 )
 
+SYSTEM_PROMPT = (
+    "Let's first understand the problem and devise a plan to solve the problem."
+    " Please output the plan starting with the header 'Plan:' "
+    "and then followed by a numbered list of steps. "
+    "Please make the plan the minimum number of steps required "
+    "to accurately complete the task. This plan will be executed by an upgraded AI agent that can take actions and make decisions on its own."
+    " The plan should be as detailed as possible, and should be able to be executed by an AI agent without any human intervention."
+    " The plan should be specific, and should contain as much detail and as few ambiguities as possible."
+    "\nIf the task is a question, "
+    "the final step should almost always be 'Given the above steps taken, "
+    "please respond to the users original question'. "
+    "\nIn completing the plan, the agent will have access to a set of tools defined by the user. "
+    "You will also see these tools, and can reference them when creating the plan."
+)
+
 class ChainExecutor(BaseExecutor):
     chain: Chain
 
@@ -43,9 +61,7 @@ class ChainExecutor(BaseExecutor):
         self, inputs: dict, callbacks: Callbacks = None, **kwargs: Any
     ) -> StepResponse:
         """Take step."""
-        print(inputs)
         response = self.chain(inputs, callbacks=callbacks)
-        print(response)
         return (StepResponse(response=response['output']), response['intermediate_steps'])
 
     async def astep(
@@ -70,6 +86,25 @@ def load_agent_executor(
         agent=agent, tools=tools, verbose=verbose, return_intermediate_steps=True
     )
     return ChainExecutor(chain=agent_executor)
+
+def load_chat_planner(
+    llm: BaseLanguageModel, tools: List[BaseTool], system_prompt: str = SYSTEM_PROMPT
+) -> LLMPlanner:
+
+    input = f"The agent will have access to the following tools when executing the plan:\n{tools}\n\n"
+    input += "{input}"
+    prompt_template = ChatPromptTemplate.from_messages(
+        [
+            SystemMessage(content=system_prompt),
+            HumanMessagePromptTemplate.from_template(input),
+        ]
+    )
+    llm_chain = LLMChain(llm=llm, prompt=prompt_template)
+    return LLMPlanner(
+        llm_chain=llm_chain,
+        output_parser=PlanningOutputParser(),
+        stop=["<END_OF_PLAN>"],
+    )
 
 def load_step_evaluator(llm):
     sys_message = (

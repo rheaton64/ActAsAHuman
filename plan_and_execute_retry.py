@@ -53,6 +53,7 @@ class PlanAndExecute(Chain):
                 )
                 if self.eval_chain:
                     eval_result = self.eval_chain(step.value, response.response, int_steps)
+                    print(eval_result)
                 else:
                     eval_result = {"success": True}
                 if eval_result['success']:

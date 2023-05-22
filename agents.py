@@ -3,9 +3,11 @@ from langchain.agents import AgentType
 from langchain.chat_models import ChatOpenAI
 from langchain.agents import initialize_agent
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-from langchain.experimental.plan_and_execute import load_chat_planner
 from plan_and_execute_retry import PlanAndExecute
-from loading import load_agent_executor, run_step_eval
+from loading import load_agent_executor, run_step_eval, load_chat_planner
+from dotenv import load_dotenv
+import os
+load_dotenv(override=True)
 
 ai_working_dir = './working'
 
@@ -45,12 +47,11 @@ agent_chain = initialize_agent(
 )
 
 tools_str = "\n".join([f"```\n{tool.name}\n{tool.description}\n```" for tool in tools])
-SYSTEM_PROMPT = SYSTEM_PROMPT.format(tools=tools_str)
-planner = load_chat_planner(llm=llm, system_prompt=SYSTEM_PROMPT)
+planner = load_chat_planner(llm=llm, tools=tools_str, system_prompt=SYSTEM_PROMPT)
 executor = load_agent_executor(llm=llm, tools=tools, verbose=True)
 eval_chain = lambda x, y, z : run_step_eval(llm, x, y, z)
 agent_pande_chain = PlanAndExecute(planner=planner, executor=executor, eval_chain=eval_chain, verbose=True)
 
 if __name__ == '__main__':
     #agent_chain.run('Create a new python program that can do something cool.')
-    agent_pande_chain.run('Create a new python progam that can do something cool.')
+    agent_pande_chain.run('Explain how "plan_and_execute_retry.py" works. It is in the directory above this one.')
