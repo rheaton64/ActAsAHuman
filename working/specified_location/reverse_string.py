@@ -1,0 +1,1 @@
+print('This is a Python program to reverse a user input string.')
